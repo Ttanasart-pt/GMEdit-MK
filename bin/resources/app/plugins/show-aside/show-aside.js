@@ -9,6 +9,8 @@
 	var sizer, splitter, container, editor, session, mainCont;
 	//
 	var gmlFile = null;
+	var showed = false;
+
 	function forceUpdate() {
 		var e = new CustomEvent("resize");
 		e.initEvent("resize");
@@ -21,6 +23,7 @@
 		mainCont.removeChild(sizer);
 		mainCont.removeChild(container);
 		gmlFile = null;
+		showed = false;
 		forceUpdate();
 		setTimeout(() => aceEditor.focus());
 	}
@@ -37,10 +40,16 @@
 			forceUpdate();
 		}
 		gmlFile = file;
+		showed = true;
 		//
 		session = GMEdit.aceTools.cloneSession(file.codeEditor.session);
 		editor.setSession(session);
 	}
+	function toggle(file) {
+		if (showed) hide();
+		else show(file);
+	}
+
 	function onFileSave(e) {
 		if (e.file == gmlFile) {
 			session.bgTokenizer.start(0);
@@ -119,22 +128,25 @@
 		var mainMenu = aceEditor.contextMenu.menu;
 		var insertAt = 0;
 		while (insertAt < mainMenu.items.length) {
-			if (mainMenu.items[insertAt++].aceCommand == "popout-editor") break;
+			if (mainMenu.items[insertAt++].aceCommand == "selectall") break;
 		}
-		mainMenu.insert(insertAt, new MenuItem({
+		mainMenu.insert(insertAt, new MenuItem({type:"separator", id:"show-aside-sep"}));
+		mainMenu.insert(insertAt + 1, new MenuItem({
 			label: "Show aside",
 			id: "show-aside",
 			icon: __dirname + "/icons/silk/application_split_vertical.png",
-			click: function() {
-				show(aceEditor.session.gmlFile);
-			}
+			click: function() { show(aceEditor.session.gmlFile); }
 		}));
+
+		AceCommands.add({
+			name: "Show aside",
+			bindKey: { win: "Alt+S" },
+			exec: (editor) => { toggle(aceEditor.session.gmlFile); },
+		});
 	}
 	//
 	GMEdit.register("show-aside", {
 		init: init,
-		cleanup: function() {
-			hide();
-		},
+		cleanup: function() { hide(); },
 	});
 })();

@@ -150,19 +150,13 @@
 	KIni.prototype = GMEdit.extend(KCode.prototype, {
 		// we don't need to override anything if it's pure code
 	});
-	
-	var kini = new KIni();
-
+	//
 	GMEdit.register("ini-editor", {
-		init: () => {
+		init: function() {
+			var kini = new KIni();
 			FileKind.register("ini", kini);
 			FileKind.register("cfg", kini);
 			FileKind.register("conf", kini);
-		},
-		cleanup: () => {
-			FileKind.deregister("ini", kini);
-			FileKind.deregister("cfg", kini);
-			FileKind.deregister("conf", kini);
 		}
 	});
 })();

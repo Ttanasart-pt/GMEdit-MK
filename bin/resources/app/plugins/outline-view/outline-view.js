@@ -1,66 +1,35 @@
 (function() {
-	function setc(el, name, on) {
-		if (el.classList.contains(name) != !!on) {
-			el.classList.toggle(name);
-		}
-	}
-	function seta(el, attr, val) {
-		if (val != null) {
-			el.setAttribute(attr, val);
-		} else el.removeAttribute(attr);
-	}
+	function setc(el, name, on)  { if (el.classList.contains(name) != !!on) el.classList.toggle(name); }
+	function seta(el, attr, val) { if (val != null) el.setAttribute(attr, val); else el.removeAttribute(attr); }
 	//
 	var Preferences = $gmedit["ui.Preferences"];
-	var FileWrap = $gmedit["electron.FileWrap"];
-	var popout = false; // show a popout instead of a sidebar
+	var FileWrap    = $gmedit["electron.FileWrap"];
+	var popout      = false; // show a popout instead of a sidebar
 	var displayMode = 1;
-	var currOnly = false; // original idea (only show the current file)
-	var noIndex = false;
+	var currOnly    = true; // original idea (only show the current file)
+	var noIndex     = false;
+
+	var showAtTop    = true;
+	var showFuncArgs = false;
+	var tailSep      = ' ➜ '; // narrow space, arrow, narrow space
+	var tailEnd      = "";
+	
 	function setDisplayMode(m) {
 		displayMode = m;
-		currOnly = (m == 0);
-		noIndex = (m == 3);
+		currOnly    = (m == 0);
+		noIndex     = (m == 3);
 	}
-	var showAtTop = true;
-	var showFuncArgs = false;
-	var tailSep = " ➜ "; // narrow space, arrow, narrow space
-	//
-	var Menuitem = Electron_MenuItem;
-	var ctxMenu = new Electron_Menu();
-	var ctxItem = null;
-	ctxMenu.append(new Menuitem({
-		id: "open",
-		label: "Open",
-		click: function() {
-			ctxItem.querySelector(".header").click();
-		}
-	}));
-	ctxMenu.append(new Menuitem({
-		id: "copy-name",
-		label: "Copy &name",
-		click: function() {
-			var text = ctxItem.getAttribute("outline-def");
-			navigator.clipboard.writeText(text);
-		}
-	}));
-	ctxMenu.append(new Menuitem({
-		id: "copy-text",
-		label: "Copy &text",
-		click: function() {
-			var text = ctxItem.querySelector(".header").innerText;
-			navigator.clipboard.writeText(text);
-		}
-	}));
 	//
 	var escapeProp = $gmedit["tools.NativeString"].escapeProp;
 	var modeMap = {
 		"ace/mode/gml": (function() {
-			var rxDef = /^((#event)|#define|#moment|#section|#roomcc)\b\s*(\w+(?::\w+)?)(.*)$/;
+			var rxDef = /^((#event)|#moment|#section|#roomcc)\b\s*(\w+(?::\w+)?)(.*)$/;
 			var rxFunc = new RegExp("^function"
 				+ "\\s+(\\w+)" // name
 				+ "\\s*(\\(.*?\\))" // args
 				+ "(?:.*?\\/\\/(.*))?" // post-comment
 			);
+
 			var rxSubFunc = new RegExp("^\\s+"
 				+ "("
 					+ "(?:static\\s+)?(\\w+)\\s*=\\s*function"
@@ -70,41 +39,38 @@
 				+ "\\s*(\\(.*?\\))" // args
 				+ "(?:.*?\\/\\/(.*))?" // post-comment
 			);
-			var rxShorthandFunc = new RegExp("^\\s*"
-				+ "(?:static\\b\\s*)?"
-				+ "(\\w+)"
-				+ "\\s*=\\s*"
-				+ "(\\(.*?\\))" + "\\s*=>\\s*" + "\\{"
-			)
-			var rxPush = /^\s*((?:#region|\/\/#region)\b\s*(.*))$/;
-			var rxPop = /^\s*(?:#endregion|\/\/#endregion)\b/;
-			var rxMark = /^\s*((?:\/\/#mark|#section)\b\s*(.*))$/;
-			var rxCtx = /^\s*((?:#region|\/\/#region|\/\/#mark)\b.*)$/
+
+			var rxPush   = /^.*((?:#region|\/\/#region)\b\s*(.*))$/;
+			var rxPop    = /^.*(?:#endregion|\/\/#endregion)\b/;
+			var rxMark   = /^\s*((?:\/\/#mark|#section)\b\s*(.*))$/;
+			var rxCtx    = /^.*((?:#region|\/\/#region|\/\/#mark)\b.*)$/
+			var rxRegionPush = /.*#region.*/;
+
+			var rxInput  = /^\s*newInput\(\s*(.+?),\s*\w+\(\s*\"(.+?)\"/
+
+			var rxComment = /.*\/{4}(.*)$/;
+			var rxClean = /^[\s=\-\+\\/\>]+|[\s=\-\+\\/\<]+$/g;
+
 			function update_gml(file, pos) {
 				var def = pos.def, row = pos.row;
 				var ctx = null, ctxRow = null;
 				var doc = file.codeEditor.session.doc;
+
 				for (; row >= 0; row--) {
 					var rowText = doc.getLine(row), mt;
-					if (mt = rxDef.exec(rowText)) {
-						def = mt[3];
-						break;
-					}
-					if (mt = rxFunc.exec(rowText)) {
-						def = mt[1];
-						break;
-					}
+
+					if (mt = rxComment.exec(rowText)) if(mt[1]) { def = mt[1]; break; }
+					if (mt = rxDef.exec(rowText))               { def = mt[3]; break; }
+					if (mt = rxFunc.exec(rowText))              { def = mt[1]; break; }
 					if (ctx) continue;
+
 					if (mt = rxCtx.exec(rowText)) {
 						ctx = mt[1];
 						ctxRow = row;
 						if (def != null) break;
+
 					} else if (mt = rxSubFunc.exec(rowText)) {
 						ctx = (mt[2] || mt[3]);
-						ctxRow = row;
-						if (def != null) break;
-					} else if (mt = rxShorthandFunc.exec(rowText)) {
-						ctx = mt[1];
 						ctxRow = row;
 						if (def != null) break;
 					}
@@ -113,54 +79,84 @@
 				pos.ctx = ctx;
 				pos.row = ctxRow != null ? ctxRow : row;
 			}
+
 			function reindex_gml(file, ctx) {
 				var doc = file.codeEditor.session.doc;
+				var customTag = false
+
 				var n = doc.getLength();
 				var def = null;
 				for (var i = 0; i < n; i++) {
+					
 					var line = doc.getLine(i), mt;
+					
+					if (mt = rxComment.exec(line)) if(mt[1]) {
+						var name = mt[1].replace("-", "").trim();
+						var classes = [];
+						if(name.startsWith("=")) classes.push("input-marker");
+						else classes.push("outline-marker");
+
+						name = name.replaceAll("=", "");
+						var nav = { def: mt[1], ctxAfter: true, showAtTop: showAtTop };
+						ctx.mark(name, line, nav, classes);
+					} 
+					
 					if (mt = rxDef.exec(line)) { // #define, #event, etc.
 						def = mt[3];
 						var label = def, title = mt[1] + " " + def;
-						
-						var tail = (mt[4] || "").trim();
+						var classes = [];
+
+						var tail = (mt[4] || "").trim().replace(rxClean, "");
 						if (tail && def != "properties") {
-							label += tailSep + tail;
+							label += tailSep + tail + tailEnd;
 							title += "\n" + tail;
 						}
 						
 						var nav = { def: def, ctxAfter: true, showAtTop: showAtTop };
-						
 						// if this is an event, we set an attribute so that we can have different icons for them
 						if (mt[1]) nav.outlineViewData = "gml_" + def;
 						
-						ctx.flush(label, title, nav);
+						ctx.flush(label, title, nav, classes);
+
 					} else if (mt = rxFunc.exec(line)) { // 2.3 top-level functions
 						def = mt[1];
 						var label = def, title = "function " + def;
-						
+						var classes = [];
+
 						if (showFuncArgs) label += mt[2];
 						title += mt[2];
 						
-						var tail = (mt[3] || "").trim();
+						var tail = (mt[3] || "").trim().replace(rxClean, "");
 						if (tail) {
-							label += tailSep + tail;
+							label += tailSep + tail + tailEnd;
 							title += "\n" + tail;
+							
+							if (tail.startsWith("////"))
+								classes.push("outline-highlight");
 						}
+
+						label = label.split("(")[0];
 						
 						var nav = { def: def, ctxAfter: true, showAtTop: showAtTop };
-						ctx.flush(label, title, nav);
+
+						if(rxRegionPush.test(line)) ctx.push(label, title, nav, classes);
+						else                        ctx.flush(label, title, nav, classes);
+
 					} else if (mt = rxSubFunc.exec(line)) {
 						var name = mt[2] || mt[3];
 						var label = name, title = mt[1];
+						var classes = [];
 						
 						if (showFuncArgs) label += mt[4];
 						title += mt[4];
 						
-						var tail = (mt[5] || "").trim();
+						var tail = (mt[5] || "").trim().replace(rxClean, "");;
 						if (tail) {
-							label += tailSep + tail;
+							label += tailSep + tail + tailEnd;
 							title += "\n" + tail;
+
+							if (tail.startsWith("////"))
+								classes.push("outline-highlight");
 						}
 						var rx;
 						if (mt[2]) {
@@ -169,6 +165,9 @@
 							rx = new RegExp("\\bfunction\\s+" + name + "\\b");
 						}
 						
+						label = label.split("(")[0];
+						label = label.replace(rxClean, "");
+
 						var nav = {
 							def: def,
 							ctx: name,
@@ -176,37 +175,116 @@
 							ctxAfter: true,
 							showAtTop: showAtTop
 						};
-						ctx.mark(label, title, nav);
-					} else if (mt = rxShorthandFunc.exec(line)) { // shorthand
-						var label = mt[1], title = mt[1];
-						rx = new RegExp("\\b" + label + "\\b\\s*=\\s*\\(");
-
-						if (showFuncArgs) label += mt[2];
-						title += mt[2];
 						
-						var nav = { def: def, ctx: mt[1], ctxRx: rx, ctxAfter: true, showAtTop: showAtTop };
-						ctx.mark(label, title, nav);
+						if(rxRegionPush.test(line)) ctx.push(label, title, nav, classes);
+						else                        ctx.mark(label, title, nav, classes);
+
 					} else if (mt = rxPush.exec(line)) {
 						var nav = { def: def, ctx: mt[1], ctxAfter: true, showAtTop: showAtTop };
-						ctx.push(mt[2], mt[0], nav);
+						nav.outlineViewData = "region"
+						var classes = [];
+
+						if(mt[2].startsWith("////"))
+							classes.push("outline-marker");
+
+						label = mt[2].replace(rxClean, "");
+						if(label == "") {
+							label = mt[1];
+							nav.outlineViewData = "unnamed-region"
+						}
+
+						ctx.push(label, mt[0], nav, classes);
+
 					} else if (mt = rxPop.exec(line)) {
 						ctx.pop();
+
 					} else if (mt = rxMark.exec(line)) {
 						var nav = { def: def, ctx: mt[1], ctxAfter: true, showAtTop: showAtTop };
 						ctx.mark(mt[2], mt[0], nav);
+
+					} else if (mt = rxInput.exec(line)) {
+						console.log("input", mt);
+						var indx = mt[1];
+						var name = mt[2];
+						
+						var nav = { def: def, ctx: name, ctxAfter: true, showAtTop: showAtTop };
+						ctx.mark(indx + " " + name, line, nav, ["node-input"]);
 					}
-				}
+				} 
 			}
+
 			return {
 				update: update_gml,
 				reindex: reindex_gml
 			}
 		})(),
+		"ace/mode/shader": (function() {
+			var rxFunc = /^\s*(void|float|vec2|vec3|vec4|mat2|mat3|mat4)\s+(\w+)\s*\(.*$/;
+			var rxComment = /.*\/\/\/\/(.*)$/;
+			var rxClean = /^[\s=\-\+\\/\>]+|[\s=\-\+\\/\<]+$/;
+
+			function update_shader(file, pos) {
+				var def = pos.def, row = pos.row;
+				var ctx = null, ctxRow = null;
+				var doc = file.codeEditor.session.doc;
+
+				for (; row >= 0; row--) {
+					var rowText = doc.getLine(row), mt;
+
+					if (mt = rxComment.exec(rowText)) if(mt[1]) {
+						def = mt[1];
+						break;
+					}
+					
+					if (mt = rxFunc.exec(rowText)) {
+						def = mt[2];
+						break;
+					}
+
+				}
+				pos.def = def;
+				pos.ctx = ctx;
+				pos.row = ctxRow != null ? ctxRow : row;
+			}
+
+			function reindex_shader(file, ctx) {
+				var doc = file.codeEditor.session.doc;
+				var customTag = false
+
+				var n = doc.getLength();
+				var def = null;
+				for (var i = 0; i < n; i++) {
+					
+					var line = doc.getLine(i), mt;
+					
+					if (mt = rxComment.exec(line)) {
+						if(mt[1]) {
+							var nav = { def: mt[1], ctxAfter: true, showAtTop: showAtTop };
+							ctx.flush(mt[1], line, nav, ["outline-marker"]);
+						} 
+					} 
+
+					if (mt = rxFunc.exec(line)) { // 2.3 top-level functions
+						def = mt[2];
+						var label = def, title = mt[1] + " " + def;
+						var classes = [];
+
+						var nav = { def: def, ctxAfter: true, showAtTop: showAtTop };
+
+						ctx.flush(label, title, nav, classes);
+
+					}
+				}
+			}
+
+			return {
+				update: update_shader,
+				reindex: reindex_shader
+			}
+		})(),
 		"ace/mode/markdown": (function() {
 			var rxDmd = /^(\s*)(#\[(.+)\](?:\(.*\))?)\s*\{\s*(?:$|[^\}\s])/;
-			//                 ##     [Title]
-			var rxDmd2 = /^\s*(#+)(?:\[(.+)\]|(.+))/;
-			var rxDmd2ex = /^(define\b|macro\b)/;
+			var rxDmd2 = /^\s*(#+)(?:\[(.+)\].*|(.+))/;
 			function update_dmd(file, pos) {
 				var row = pos.row;
 				var doc = file.codeEditor.session.doc;
@@ -223,7 +301,6 @@
 				var doc = file.codeEditor.session.doc;
 				var n = doc.getLength();
 				var stack = [], eos;
-				var depth = 0;
 				for (var row = 0; row < n; row++) {
 					var line = doc.getLine(row);
 					var mt;
@@ -236,20 +313,7 @@
 						ctx.pop();
 					} else if (mt = rxDmd2.exec(line)) {
 						var name = mt[2] || mt[3];
-						if (rxDmd2ex.test(name)) continue;
-						var newDepth = mt[1].length;
-						if (newDepth > depth) {
-							ctx.push(name, mt[0], { ctx: name,ctxAfter:true});
-						} else if (newDepth < depth) {
-							ctx.pop();
-							ctx.pop();
-							ctx.push(name, mt[0], { ctx: name,ctxAfter:true});
-						} else {
-							ctx.pop();
-							ctx.push(name, mt[0], { ctx: name,ctxAfter:true});
-							//ctx.mark(name, mt[0], { ctx: name, ctxAfter: true });
-						}
-						depth = newDepth;
+						ctx.mark(name, mt[0], { ctx: name, ctxAfter: true });
 					}
 				}
 			}
@@ -341,6 +405,7 @@
 			}
 		})(),
 	};
+
 	//
 	var outer = document.createElement("div");
 	outer.id = "outline-view";
@@ -348,21 +413,28 @@
 		outer.classList.add("outer-window");
 		outer.style.resize = "horizontal";
 	}
+
 	//
 	var treeview = document.createElement("div")
 	treeview.classList.add("treeview");
 	outer.appendChild(treeview);
+
 	//
 	var currEl = null;
+
 	//
 	function currFile() { return $gmedit["gml.file.GmlFile"].current; }
-	
-	/**
-	 * Focus the given file's tab.
-	 * @param {GMEdit.GmlFile} file
-	 */
+
+	// maybe this should be a "built-in" function instead
 	function activateFile(file) {
-		file.tabEl?.click();
+		var tabs = document.querySelectorAll(".chrome-tab");
+		for (var i = 0; i < tabs.length; i++) {
+			if (tabs[i].gmlFile == file) {
+				tabs[i].click();
+				return tabs[i];
+			}
+		}
+		return null;
 	}
 
 	//
@@ -372,54 +444,38 @@
 	function makeNav_clicked(e) {
 		var dir = e.target;
 		if (dir.classList.contains("header")) dir = dir.parentElement;
+		
 		if (e.offsetX < dir.treeHeader.querySelector("span").offsetLeft && dir.treeItems.children.length > 0) {
 			dir.classList.toggle("open");
 		} else {
 			if (currFile() != dir.outlineViewFile) activateFile(dir.outlineViewFile);
-			if (dir.outlineViewNav) dir.outlineViewFile.navigate(dir.outlineViewNav);
+			if (dir.outlineViewNav) {
+				dir.outlineViewFile.navigate(dir.outlineViewNav);
+			}
 		}
 	}
-	function makeNav_contextmenu(e) {
-		var dir = e.target, header;
-		if (dir.classList.contains("header")) {
-			header = dir;
-			dir = dir.parentElement;
-		} else header = dir.querySelector(".header");
-		ctxItem = dir;
-		header.classList.add("selected");
-		ctxMenu.popup({
-			async: true,
-			callback: function() {
-				header.classList.remove("selected");
-			}
-		});
-	}
 
-	/**
-	 * Change the label for the given navigation item.
-	 * 
-	 * @param {HTMLDivElement} item 
-	 * @param {string} label 
-	 */
-	function setNavItemLabel(item, label) {
-		item.treeHeader.querySelector("span.label").textContent = label;
-	}
-
-	function makeNav(file, label, title, nav) {
+	function makeNav(file, label, title, nav, classes = []) {
 		var r = navPool.pop();
 		if (r) {
-			setNavItemLabel(r, label);
+			r.querySelector(".header span").innerHTML = label;
 		} else {
 			r = makeDir(label);
 			r.classList.add("outline-item");
 			r.classList.remove("dir");
 			r.treeHeader.classList.add("item");
 			r.treeHeader.addEventListener("click", makeNav_clicked);
-			r.treeHeader.addEventListener("contextmenu", makeNav_contextmenu);
 		}
 		r.classList.add("open");
 		r.outlineViewFile = file;
 		r.outlineViewNav = nav;
+
+		r.classList.remove("input-marker");
+		r.classList.remove("outline-marker");
+		r.classList.remove("node-input");
+		for (var i = 0; i < classes.length; i++)
+			r.classList.add(classes[i]);
+
 		// if it's a top-level node, we let it be affected by custom CSS icon
 		seta(r.treeHeader, "data-full-path", nav ? null : file.path);
 		seta(r.treeHeader, "data-ident", nav ? null : file.name);
@@ -436,14 +492,17 @@
 		seta(r, "outline-ctx", nav && nav.ctx);
 		return r;
 	}
+
 	//
 	function getConf(file) {
-		if (file.codeEditor) {
+		if (file.codeEditor)
 			return modeMap[file.codeEditor.session.$modeId];
-		} else if (file.kind instanceof $gmedit["file.kind.misc.KPreferencesBase"]) {
+		if (file.kind instanceof $gmedit["file.kind.misc.KPreferencesBase"]) 
 			return modeMap["$preferences"];
-		} else return null;
+		
+		return null;
 	}
+
 	function update(file) {
 		var conf = getConf(file);
 		if (!conf) return;
@@ -453,6 +512,7 @@
 			ctx: null,
 		};
 		var currDir;
+		
 		if (file.codeEditor) {
 			var session = file.codeEditor.session;
 			var row = session.selection.lead.row;
@@ -493,6 +553,7 @@
 			if (nextItem) nextItem.classList.add("outline-current-item");
 		}
 	}
+
 	function reindex(file) {
 		var ov = file.outlineView;
 		// memorize which 
@@ -531,14 +592,14 @@
 			finishDir(curr);
 		}
 		var ctx = {
-			flush: function(label, title, nav) {
+			flush: function(label, title, nav, classes = []) {
 				flushStack();
-				var q = makeNav(file, label, title, nav);
+				var q = makeNav(file, label, title, nav, classes);
 				ov.treeItems.appendChild(q);
 				return (curr = q);
 			},
-			push: function(label, title, nav) {
-				var q = makeNav(file, label, title, nav);
+			push: function(label, title, nav, classes = []) {
+				var q = makeNav(file, label, title, nav, classes);
 				curr.treeItems.appendChild(q);
 				stack.push(curr);
 				return (curr = q);
@@ -547,8 +608,8 @@
 				finishDir(curr);
 				return (curr = stack.pop() || ov);
 			},
-			mark: function(label, title, nav) {
-				var q = makeNav(file, label, title, nav);
+			mark: function(label, title, nav, classes = []) {
+				var q = makeNav(file, label, title, nav, classes);
 				finishDir(q);
 				curr.treeItems.appendChild(q);
 				return q;
@@ -563,6 +624,7 @@
 			if (q) q.classList.remove("open");
 		}
 	}
+
 	//
 	function createFor(file) {
 		var dir = makeNav(file, file.name, file.path, null);
@@ -571,6 +633,7 @@
 		file.outlineView = dir;
 		reindex(file);
 	}
+
 	// updates the panel to contain treeviews of active tabs and in correct order
 	function syncAll(tabEls) {
 		if (tabEls == null) tabEls = $gmedit["ui.ChromeTabs"].impl.tabEls;
@@ -588,11 +651,13 @@
 			treeview.appendChild(file.outlineView);
 		}
 	}
+
 	function changeTo_post(file) {
 		var curr = treeview.querySelector(".outline-current-file");
 		if (curr) curr.classList.remove("outline-current-file");
 		if (file.outlineView) file.outlineView.classList.add("outline-current-file");
 	}
+
 	function changeTo(file) {
 		if (!file.outlineView) {
 			createFor(file);
@@ -622,6 +687,7 @@
 		}
 		changeTo_post(file);
 	}
+
 	function forceRefresh() {
 		var tabEls = $gmedit["ui.ChromeTabs"].impl.tabEls;
 		for (var i = 0; i < tabEls.length; i++) {
@@ -637,31 +703,38 @@
 			changeTo(currFile());
 		}
 	}
+
 	//
 	function onFileChange(e) {
 		changeTo(e.file);
 	}
+
 	function onFileClose(e) {
 		if (!currOnly) syncAll();
 	}
+
 	function onFileSave(e) {
 		reindex(e.file);
 		update(e.file);
 	}
+
 	function onTabsReorder(e) {
 		if (!currOnly) syncAll(e.target.tabEls);
 	}
+
 	// update current subitem on editor navigation
 	var onUpdate_scheduled = false;
 	function onUpdate() {
 		onUpdate_scheduled = false;
 		update(currFile());
 	}
+
 	function onUpdate_schedule() {
 		if (onUpdate_scheduled) return;
 		onUpdate_scheduled = true;
 		setTimeout(onUpdate, 120);
 	}
+
 	//
 	var visible = false;
 	var toggleCheckbox = null;
@@ -672,6 +745,7 @@
 			onUpdate_schedule();
 		} else changeTo(currFile());
 	}
+
 	function toggle() {
 		visible = !visible;
 		function sete(obj, event, listener, on) {
@@ -702,97 +776,55 @@
 		}
 	}
 
-	/**
-	 * Update a file's name and path in the outline view when it is modified.
-	 * @param {{ file: GMEdit.GmlFile }} event 
-	 */
-	function onFileRename({ file }) {
-
-		if ('outlineView' in file) {
-			setNavItemLabel(file.outlineView, file.name);
-		}
-
-	}
-
-	function opt(ov, name, def) {
-		if (!ov) return def;
-		var val = ov[name];
-		return val !== undefined ? val : def;
-	}
-
-	function getDisplayMode(currOV) {
-		var dm = opt(currOV, "displayMode", null);
-		if (dm == null) dm = opt(currOV, "currOnly", false) ? 0 : 1;
-		return dm;
-	}
-
-	var toggleOutlineViewCommand;
-	var toggleOutlineViewPaletteCommand;
-
-	var currPrefs = Preferences.current;
-	var currOV = currPrefs.outlineView;
-	
-	function prepareOV() {
-		currOV = Preferences.current.outlineView;
-		if (!currOV) currOV = Preferences.current.outlineView = {};
-		return currOV;
-	}
-
-	GMEdit.register("outline-view", {
-		init: () => {
-
-			toggleOutlineViewCommand = {
-				name: "toggleOutlineView",
-				//bindKey: "Ctrl-Shift-O", // if you'd like
-				exec: function(editor) {
-					toggle();
-					var currPrefs = FileWrap.readConfigSync("config", Preferences.path);
-					if (currPrefs) {
-						currOV = currPrefs.outlineView;
-						if (currOV == null) currOV = currPrefs.outlineView = {};
-						currOV.hide = !visible;
-						FileWrap.writeConfigSync("config", Preferences.path, currPrefs);
-					}
+	function init() {
+		AceCommands.add({
+			name: "toggleOutlineView",
+			//bindKey: "Ctrl-Shift-O", // if you'd like
+			exec: function(editor) {
+				toggle();
+				var currPrefs = FileWrap.readConfigSync("config", Preferences.path);
+				if (currPrefs) {
+					var currOV = currPrefs.outlineView;
+					if (currOV == null) currOV = currPrefs.outlineView = {};
+					currOV.hide = !visible;
+					FileWrap.writeConfigSync("config", Preferences.path, currPrefs);
 				}
-			};
-
-			toggleOutlineViewPaletteCommand = {
-				name: "Toggle outline view",
-				exec: "toggleOutlineView",
-				title: ""
-			};
-
-			AceCommands.add(toggleOutlineViewCommand);
-			AceCommands.addToPalette(toggleOutlineViewPaletteCommand);
-			
-			setDisplayMode(getDisplayMode(currOV))
-			showAtTop = opt(currOV, "showAtTop", true);
-			showFuncArgs = opt(currOV, "showFuncArgs", true);
-	
-			GMEdit.on("fileRename", onFileRename);
-
-			if (!(currOV && currOV.hide)) {
-				toggle();
 			}
-	
-		},
-		cleanup: function() {
-
-			AceCommands.remove(toggleOutlineViewCommand);
-			AceCommands.removeFromPalette(toggleOutlineViewPaletteCommand);
-
-			GMEdit.off("fileRename", onFileRename);
-
-			if (visible) {
-				toggle();
-			}
-
-		},
-		buildPreferences: (out) => {
-			currOV = Preferences.current.outlineView;
+		});
+		AceCommands.addToPalette({
+			name: "Toggle outline view",
+			exec: "toggleOutlineView",
+			title: ""
+		});
+		//
+		var currPrefs = Preferences.current;
+		var currOV = currPrefs.outlineView;
+		function opt(ov, name, def) {
+			if (!ov) return def;
+			var val = ov[name];
+			return val !== undefined ? val : def;
+		}
+		function prepareOV() {
+			var currOV = Preferences.current.outlineView;
+			if (!currOV) currOV = Preferences.current.outlineView = {};
+			return currOV;
+		}
+		if (!(currOV && currOV.hide)) toggle();
+		function getDisplayMode(currOV) {
+			var dm = opt(currOV, "displayMode", null);
+			if (dm == null) dm = opt(currOV, "currOnly", false) ? 0 : 1;
+			return dm;
+		}
+		setDisplayMode(getDisplayMode(currOV))
+		showAtTop = opt(currOV, "showAtTop", true);
+		showFuncArgs = opt(currOV, "showFuncArgs", true);
+		//
+		GMEdit.on("preferencesBuilt", function(e) {
+			var out = e.target.querySelector('.plugin-settings[for="outline-view"]');
+			var currOV = Preferences.current.outlineView;
 			var hideCtr = Preferences.addCheckbox(out, "Hide", currOV && currOV.hide, function(val) {
 				toggle();
-				currOV = prepareOV();
+				var currOV = prepareOV();
 				currOV.hide = !visible;
 				Preferences.save();
 			});
@@ -805,7 +837,7 @@
 			];
 			Preferences.addDropdown(out, "Display mode", displayModes[getDisplayMode(currOV)], displayModes, function(val) {
 				var i = displayModes.indexOf(val);
-				currOV = prepareOV();
+				var currOV = prepareOV();
 				currOV.displayMode = i;
 				setDisplayMode(i);
 				Preferences.save();
@@ -813,21 +845,27 @@
 				forceRefresh();
 			})
 			Preferences.addCheckbox(out, "Show 2.3 function arguments", opt(currOV, "showFuncArgs", true), function(val) {
-				currOV = prepareOV();
+				var currOV = prepareOV();
 				showFuncArgs = currOV.showFuncArgs = val;
 				currEl = null;
 				Preferences.save();
 				forceRefresh();
 			});
 			Preferences.addCheckbox(out, "Scroll to top upon navigation", opt(currOV, "showAtTop", true), function(val) {
-				currOV = prepareOV();
+				var currOV = prepareOV();
 				showAtTop = currOV.showAtTop = val;
 				currEl = null;
 				Preferences.save();
 				forceRefresh();
 			});
+		});
+	}
+
+	GMEdit.register("outline-view", {
+		init: init,
+		cleanup: function() {
+			// todo
 		},
 		_modeMap: modeMap
 	});
-
 })();
