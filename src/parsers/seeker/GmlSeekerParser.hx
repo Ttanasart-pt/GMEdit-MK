@@ -41,47 +41,47 @@ class GmlSeekerParser {
 					if (flags.has(Cub1)) return "}";
 				}
 				case "=".code: if (flags.has(SetOp) && q.peek() != "=".code) return "=";
-				// case "/".code: switch (q.peek()) {
-				// 	case "/".code: {
-				// 		q.skip();
-				// 		q.skipLine();
-				// 		seeker.commentLineJumps[q.pos - 1] = start;
-				// 		if (q.get(start + 2) == "!".code && q.get(start + 3) == "#".code) {
-				// 			if (q.substring(start + 4, start + 9) == "mfunc") do {
-				// 				//  01234567890
-				// 				// `//!#mfunc name
-				// 				var c = q.get(start + 9);
-				// 				if (!c.isSpace0()) break;
-				// 				var line = q.substring(start + 10, q.pos);
-				// 				var sp = line.indexOf(" ");
-				// 				var name = line.substring(0, sp);
-				// 				var json = try {
-				// 					haxe.Json.parse(line.substring(sp + 1));
-				// 				} catch (_:Dynamic) break;
-				// 				var mf = new GmlExtMFunc(name, json);
-				// 				seeker.setLookup(name, false, "macro");
-				// 				out.mfuncs[name] = mf;
-				// 				out.comps[name] = mf.comp;
-				// 				out.kindList.push(name);
-				// 				var tokenType = ace.AceMacro.jsOrx(json.token, "macro.function");
-				// 				out.kindMap.set(name, tokenType);
-				// 				var mfd = new GmlFuncDoc(name, name + "(", ")", mf.args, false);
-				// 				out.docs[name] = mfd;
-				// 			} while (false);
-				// 		}
-				// 		else if (flags.has(Doc) && q.get(start + 2) == "/".code) {
-				// 			return q.substring(start, q.pos);
-				// 		}
-				// 	};
-				// 	case "*".code: {
-				// 		q.skip();
-				// 		q.skipComment();
-				// 		if (flags.has(ComBlock) || flags.has(Doc) && q.get(start + 2) == "*".code) {
-				// 			return q.substring(start, q.pos);
-				// 		}
-				// 	};
-				// 	default:
-				// };
+				case "/".code: switch (q.peek()) {
+					case "/".code: {
+						q.skip();
+						q.skipLine();
+						seeker.commentLineJumps[q.pos - 1] = start;
+						if (q.get(start + 2) == "!".code && q.get(start + 3) == "#".code) {
+							if (q.substring(start + 4, start + 9) == "mfunc") do {
+								//  01234567890
+								// `//!#mfunc name
+								var c = q.get(start + 9);
+								if (!c.isSpace0()) break;
+								var line = q.substring(start + 10, q.pos);
+								var sp = line.indexOf(" ");
+								var name = line.substring(0, sp);
+								var json = try {
+									haxe.Json.parse(line.substring(sp + 1));
+								} catch (_:Dynamic) break;
+								var mf = new GmlExtMFunc(name, json);
+								seeker.setLookup(name, false, "macro");
+								out.mfuncs[name] = mf;
+								out.comps[name] = mf.comp;
+								out.kindList.push(name);
+								var tokenType = ace.AceMacro.jsOrx(json.token, "macro.function");
+								out.kindMap.set(name, tokenType);
+								var mfd = new GmlFuncDoc(name, name + "(", ")", mf.args, false);
+								out.docs[name] = mfd;
+							} while (false);
+						}
+						else if (flags.has(Doc) && q.get(start + 2) == "/".code) {
+							return q.substring(start, q.pos);
+						}
+					};
+					case "*".code: {
+						q.skip();
+						q.skipComment();
+						if (flags.has(ComBlock) || flags.has(Doc) && q.get(start + 2) == "*".code) {
+							return q.substring(start, q.pos);
+						}
+					};
+					default:
+				};
 				case '"'.code, "'".code, "`".code, "@".code: q.skipStringAuto(c, seeker.version);
 				case "$".code if (q.isDqTplStart(seeker.version)): q.skipDqTplString(seeker.version);
 				case "#".code: {

@@ -203,8 +203,8 @@ using tools.NativeArray;
 				? rxRule("comment.doc", ~/\/\*\*.*?(?:\*\/|$)/)
 				: rxPush("comment.doc", ~/\/\*\*/, "gml.comment.doc"),
 			fakeMultiline
-				? rxRule("comment", ~/\/\*.*?(?:\*\/|$)/)
-				: rxPush("comment", ~/\/\*/, "gml.comment"),
+				? rxRule("comment", ~/\/\*(?!\[).*?(?:\*\/|$)/)
+				: rxPush("comment", ~/\/\*(?!\[)/, "gml.comment"),
 			// #stuff:
 			rDefine,
 			rActionWith, rAction,
