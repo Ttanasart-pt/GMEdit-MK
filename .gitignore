@@ -32,4 +32,4 @@
 /tests/unittest_node/public/js_test.js
 /art/media/x*.png
 
-*~lock~
+*.afdesign~lock~
