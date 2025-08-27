@@ -1,4 +1,4 @@
-# GMEdit
+# GMEdit-MK
 
 GMEdit is a high-end, open-source code editor for GameMaker.
 
@@ -26,6 +26,22 @@ By design it is something that you run alongside the base IDE, but there are [wa
 This web-based version has some limitations compared to the downloadable one, but can give you a general idea of what GMEdit can do, and can also be used to open GameMaker projects without installing anything!
 
 Maintained by: [YellowAfterlife](https://yal.cc)
+
+## About this fork
+
+This is a fork of the original GMEdit, with some additional features specifically for working on [Pixel Composer](https://github.com/Ttanasart-pt/Pixel-Composer). This includes:
+
+- Syntax highlighting for inline multi-language comments.
+
+```
+/*[cpp]
+function double inlinec_add(double a, double b) {
+  return a + b;
+}
+*/ 
+```
+- Modified Dracula theme for default plugins.
+- New icon
 
 ## Pre-built binaries
 
