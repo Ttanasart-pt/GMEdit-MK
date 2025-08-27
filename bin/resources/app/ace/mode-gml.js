@@ -119,7 +119,7 @@ oop.inherits(FoldMode, BaseFoldMode);
 			"\\{" + "[^\\}]*" + "$",
 			"\\[" + "[^\\]]*" + "$",
 		].join("|") + ")",
-		"^" + "\\s*" + "(\\/\\*)", // opening comment block
+		"^" + "\\s*" + "(\\/\\*(?!\\[))", // opening comment block
 		"^#(?:define|event|moment|section|target)\\b", // start-of-line context magic
 		"#region\\b",
 		"^" + "\\s*" + "(?:case|default)\\b", // switch blocks
