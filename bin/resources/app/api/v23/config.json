@@ -20,8 +20,7 @@
 		"../shared/replace-v23.gml"
 	],
 	
-	"additionalKeywords": ["function", "try", "catch", "finally", "throw", "static", "new", "delete", 
-		"double", "float", "int", "char", "unsigned", "signed", "const" ],
+	"additionalKeywords": ["function", "try", "catch", "finally", "throw", "static", "new", "delete", "double", "float", "int", "char", "unsigned", "signed", "const", "struct" ],
 	
 	"//projectRegex": "This version is assigned as an override in gml.Project.reload if the YYP has a 2.3 tag",
 	"helpURL": "https://manual.yoyogames.com/#ux=search&rhsearch=$1"
