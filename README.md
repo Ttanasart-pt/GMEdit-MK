@@ -1,6 +1,6 @@
 # GMEdit-MK
 
-![screensoht]{https://github.com/Ttanasart-pt/GMEdit-MK/blob/bef1ce76cf9e553e211f52f9ab3932e59627a7f8/art/media/mk1.png}
+![screenshot](https://github.com/Ttanasart-pt/GMEdit-MK/blob/bef1ce76cf9e553e211f52f9ab3932e59627a7f8/art/media/mk1.png)
 
 GMEdit is a high-end, open-source code editor for GameMaker.
 
