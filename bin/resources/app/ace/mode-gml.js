@@ -120,7 +120,7 @@ oop.inherits(FoldMode, BaseFoldMode);
 			"\\[" + "[^\\]]*" + "$",
 		].join("|") + ")",
 		"^" + "\\s*" + "(\\/\\*(?!\\[))", // opening comment block
-		"^#(?:define|event|moment|section|target)\\b", // start-of-line context magic
+		"^#(?:event|moment|section|target)\\b", // start-of-line context magic
 		"#region\\b",
 		"^" + "\\s*" + "(?:case|default)\\b", // switch blocks
 	].join("|"));
@@ -129,7 +129,7 @@ oop.inherits(FoldMode, BaseFoldMode);
 	this.tripleStarBlockCommentRe = /^\s*(\/\*\*\*).*\*\/\s*$/;
 	this.startRegionRe = /^\s*(\/\*|\/\/)#region\b/;
 	this.startBlockRe = /^\s*#region\b/;
-	this.startScriptRe = /^(?:#define|#event|#section|#moment|#target|#with)\b/;
+	this.startScriptRe = /^(?:#event|#section|#moment|#target|#with)\b/;
 	this.startCaseRe = /^\s*(case|default)\b/;
 	this._getFoldWidgetBase = this.getFoldWidget;
 	this.getFoldWidget = function(session, foldStyle, row) {
@@ -280,8 +280,8 @@ oop.inherits(FoldMode, BaseFoldMode);
 		var startRow = row;
 		// sections collapse until the next section, but the rest collapses until the next block
 		var re = /^#section\b/.test(line)
-			? /^(?:#define|#event|#section|#moment|#target)\b/
-			: /^(?:#define|#event|#moment|#target)\b/;
+			? /^(?:#event|#section|#moment|#target)\b/
+			: /^(?:#event|#moment|#target)\b/;
 		var last = line;
 		while (++row < maxRow) {
 			line = session.getLine(row);
@@ -327,7 +327,7 @@ oop.inherits(FoldMode, BaseFoldMode);
 } // function ace_mode_gml_0
 function ace_mode_gml_1() {
 // a nasty override for Gutter.update to reset line counter on #define:
-var rxDefine = /^(?:#define|#event|#action|#section|#moment|#target|#with)\b/;
+var rxDefine = /^(?:#event|#action|#section|#moment|#target|#with)\b/;
 var rxLine1 = /^#moment\s+\d+[|\s]\s*.+$|^#event\s+\w+(?:\:\w*)?[|\s]\s*.+$|#section[|\s]\s*.+/;
 var rxSection = /^#section\b/;
 var Gutter = ace.require("ace/layer/gutter").Gutter;
