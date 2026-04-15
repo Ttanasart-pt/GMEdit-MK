@@ -42,6 +42,8 @@ class GmlTypeParser {
 		r["bool"] = KBool;
 		r["Bool"] = KBool;
 		r["boolean"] = KBool;
+		r["enum"] = KEnumValue;
+		r["Enum"] = KEnumValue;
 		//
 		r["array"] = KArray;
 		r["Array"] = KArray;
@@ -65,6 +67,7 @@ class GmlTypeParser {
 		r["any_fields_of"] = KAnyFieldsOf;
 		r["params_of"] = KParamsOf;
 		r["params_of_nl"] = KParamsOfNL;
+		r["last_param_of"] = KLastParamOf;
 		r["method_auto_func"] = KMethodFunc;
 		r["method_auto_self"] = KMethodSelf;
 		r["buffer_auto_type"] = KBufferAutoType;
@@ -167,14 +170,18 @@ class GmlTypeParser {
 					return THint(name, parseRec(q, ctx, flags));
 				}
 				
+				var params = [];
 				if (name.contains(".")) {
 					var nameLq = name.toLowerCase();
-					var alt = GmlAPI.featherAliases[nameLq];
-					if (alt != null) name = alt;
+					if (nameLq.startsWith("enum.")) {
+						name = "enum";
+					} else {
+						var alt = GmlAPI.featherAliases[nameLq];
+						if (alt != null) name = alt;
+					}
 				}
 				
 				var kind = JsTools.or(kindMeta[name], KCustom);
-				var params = [];
 				//
 				var typeWarn = warnAboutMissing;
 				//
@@ -351,7 +358,7 @@ class GmlTypeParser {
 					return null;
 				}
 			};
-			case LKIdent, LKUndefined, LKFunction:
+			case LKIdent, LKUndefined, LKFunction, LKEnum:
 				typeStr = self.nextVal;
 				while (self.skipIfPeek(LKDot)) {
 					typeStr += ".";
